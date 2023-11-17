@@ -279,7 +279,17 @@ func (c *client) DoRequest(
 				"http_res_body": responseBody,
 			})
 
-		err = json.NewDecoder(res.Body).Decode(responseBody)
+		bodyBytes, readErr := io.ReadAll(res.Body)
+		if readErr != nil {
+			return fmt.Errorf(
+				"failed reading bytes from res.Body: %w",
+				readErr,
+			)
+		}
+
+		tflog.Error(ctx, fmt.Sprintf("res.Body: %s", bodyBytes))
+		byteReader := bytes.NewReader(bodyBytes)
+		err = json.NewDecoder(byteReader).Decode(responseBody)
 		if err != nil {
 			return fmt.Errorf(
 				"failed to decode HTTP %s response (path: %s) - Reason: %w",

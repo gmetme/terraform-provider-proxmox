@@ -104,10 +104,31 @@ func (c *Client) DeleteVM(ctx context.Context) error {
 func (c *Client) GetVM(ctx context.Context) (*GetResponseData, error) {
 	resBody := &GetResponseBody{}
 
-	err := c.DoRequest(ctx, http.MethodGet, c.ExpandPath("config"), nil, resBody)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving VM: %w", err)
+	sleep := 5 * time.Second
+	attempts := 3
+	for i := 0; i < attempts; i++ {
+		tflog.Error(ctx, fmt.Sprintf("Attempting to retrieve VM config, attempt: %d", i))
+
+		if i > 0 {
+			time.Sleep((sleep))
+		}
+
+		tflog.Trace(ctx, "Attempting GetVM HTTP call")
+		err := c.DoRequest(ctx, http.MethodGet, c.ExpandPath("config"), nil, resBody)
+		if err == nil {
+			break
+		}
+
+		tflog.Error(ctx, fmt.Sprintf("Failed retrieving VM config via HTTPS, attempt %d\nError: %s", i, err))
+		if i+1 == attempts {
+			return nil, fmt.Errorf("error retrieving VM: %w", err)
+		}
 	}
+
+	//err := c.DoRequest(ctx, http.MethodGet, c.ExpandPath("config"), nil, resBody)
+	//if err != nil {
+	//	return nil, fmt.Errorf("error retrieving VM: %w", err)
+	//}
 
 	if resBody.Data == nil {
 		return nil, api.ErrNoDataObjectInResponse
